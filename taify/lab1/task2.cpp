@@ -1,307 +1,213 @@
-/**
- * Программа выполняет следующие задачи:
- * 1. Загружает предопределенную КС-грамматику (Вариант 9).
- * 2. В интерактивном режиме запрашивает у пользователя последовательность номеров правил.
- * 3. Выполняет симуляцию левого вывода, сохраняя состояние цепочки на каждом шаге.
- * 4. Выводит пошаговый процесс левого вывода.
- * 5. Формирует и выводит линейную скобочную форму дерева.
- * 6. Строит и визуализирует псевдографическое дерево вывода. Для каждого узла,
- *    где применялось правило, отображается полное состояние выводимой цепочки
- *    сразу после применения этого правила.
- */
-
 #include <iostream>
 #include <vector>
 #include <string>
-#include <sstream>
+#include <memory>  
 #include <stdexcept>
 #include <cctype>
-
-// --- Определение структур ---
+#include <sstream>
+#include <utility>  
 
 /**
  * @struct Rule
- * @brief Хранит одно правило КС-грамматики.
+ * @brief Хранит одно правило грамматики.
  */
 struct Rule {
-    char lhs;           ///< Левая часть правила (нетерминал).
-    std::string rhs;    ///< Правая часть правила (цепочка символов).
+    char non_terminal;
+    std::string replacement;
 };
 
 /**
- * @struct TreeNode
+ * @class TreeNode
  * @brief Узел в дереве вывода.
  */
-struct TreeNode {
-    std::string value;                  ///< Значение узла (например, "S<1>" или терминал "a").
-    std::string derivation_state_string;///< Полная рабочая цепочка после применения правила в этом узле.
-    std::vector<TreeNode*> children;    ///< Дочерние узлы.
+class TreeNode {
+public:
+    std::string value;
+    int rule_number = 0; // Номер правила, примененного для создания этого узла
+    std::vector<std::unique_ptr<TreeNode>> children;
+
+    explicit TreeNode(std::string val) : value(std::move(val)) {}
+
+    // Запрещаем копирование, чтобы избежать проблем с владением памятью
+    TreeNode(const TreeNode&) = delete;
+    TreeNode& operator=(const TreeNode&) = delete;
+};
+
+/**
+ * @class DerivationTree
+ * @brief Представляет и строит дерево вывода (реализует логику вашего класса Tree).
+ */
+class DerivationTree {
+public:
+    DerivationTree(char start_symbol) {
+        root = std::make_unique<TreeNode>(std::string(1, start_symbol));
+    }
 
     /**
-     * @brief Деструктор для рекурсивного освобождения памяти, выделенной под дерево.
+     * @brief Находит самый левый узел для замены и добавляет к нему дочерние элементы.
      */
-    ~TreeNode() {
-        for (auto child : children) {
-            delete child;
+    void apply_rule(const Rule& rule, int rule_num) {
+        TreeNode* node_to_expand = find_leftmost_expandable_node(root.get(), rule.non_terminal);
+        if (!node_to_expand) {
+            throw std::runtime_error("Ошибка дерева: Не найден подходящий нетерминал для применения правила.");
+        }
+        
+        node_to_expand->rule_number = rule_num;
+        for (char symbol : rule.replacement) {
+            node_to_expand->children.push_back(std::make_unique<TreeNode>(std::string(1, symbol)));
+        }
+    }
+
+    /**
+     * @brief Генерирует линейную скобочную форму дерева (реализует логику getTree).
+     */
+    std::string get_bracket_form() const {
+        std::stringstream ss;
+        generate_bracket_form_recursive(root.get(), ss);
+        return ss.str();
+    }
+
+private:
+    std::unique_ptr<TreeNode> root;
+
+    // Рекурсивный поиск самого левого нераскрытого нетерминала (аналог findNode)
+    TreeNode* find_leftmost_expandable_node(TreeNode* current, char target_non_terminal) {
+        if (!current) return nullptr;
+        // Если узел - искомый нетерминал и у него еще нет дочерних узлов, мы нашли его.
+        if (current->value.length() == 1 && current->value[0] == target_non_terminal && current->children.empty()) {
+            return current;
+        }
+        // В противном случае, рекурсивно ищем в дочерних узлах слева направо.
+        for (const auto& child : current->children) {
+            TreeNode* result = find_leftmost_expandable_node(child.get(), target_non_terminal);
+            if (result) {
+                return result;
+            }
+        }
+        return nullptr;
+    }
+
+    // Рекурсивная генерация скобочной формы
+    void generate_bracket_form_recursive(const TreeNode* node, std::stringstream& ss) const {
+        if (!node) return;
+
+        ss << node->value[0];
+        if (isupper(node->value[0])) { // Если это нетерминал
+            ss << node->rule_number;
+            if (!node->children.empty()) {
+                ss << "(";
+                for (const auto& child : node->children) {
+                    generate_bracket_form_recursive(child.get(), ss);
+                }
+                ss << ")";
+            }
         }
     }
 };
 
-
-// --- Вспомогательные функции ---
-
 /**
- * @brief Проверяет, является ли символ нетерминалом (прописная буква).
- * @param c Символ для проверки.
- * @return true, если символ - нетерминал.
+ * @class DerivationProcessor
+ * @brief Управляет процессом левого вывода (реализует логику move).
  */
-bool isNonTerminal(char c) {
-    return isupper(c);
-}
+class DerivationProcessor {
+public:
+    explicit DerivationProcessor(std::string start_chain) : current_chain(std::move(start_chain)) {}
 
-/**
- * @brief Находит индекс самого левого нетерминала в строке.
- * @param s Строка для поиска.
- * @return Индекс первого найденного нетерминала или -1, если не найден.
- */
-int findLeftmostNonTerminalIndex(const std::string& s) {
-    for (size_t i = 0; i < s.length(); ++i) {
-        if (isNonTerminal(s[i])) {
-            return i;
+    /**
+     * @brief Применяет правило к текущей цепочке, соблюдая левый вывод.
+     */
+    void apply_rule(const Rule& rule) {
+        for (size_t i = 0; i < current_chain.length(); ++i) {
+            if (current_chain[i] == rule.non_terminal) {
+                current_chain.replace(i, 1, rule.replacement);
+                return;
+            }
         }
-    }
-
-    return -1;
-}
-
-/**
- * @brief Разбирает строку с правилами, разделенными запятыми, в вектор чисел.
- * @param input Входная строка (например, "1, 2, 3").
- * @param output Выходной вектор для сохранения чисел.
- * @return true, если разбор успешен, иначе false.
- */
-bool parseRuleSequence(const std::string& input, std::vector<int>& output) {
-    output.clear();
-    std::stringstream ss(input);
-    std::string segment;
-    while (std::getline(ss, segment, ',')) {
-        try {
-            output.push_back(std::stoi(segment));
-        } catch (const std::invalid_argument&) {
-            std::cerr << "\n[ОШИБКА ВВОДА] Фрагмент '" << segment << "' не является корректным числом.\n";
-            return false;
-        } catch (const std::out_of_range&) {
-            std::cerr << "\n[ОШИБКА ВВОДА] Число '" << segment << "' слишком большое.\n";
-            return false;
-        }
-    }
-
-    return true;
-}
-
-
-// --- Функции построения и отрисовки дерева ---
-
-/**
- * @brief Рекурсивно строит дерево вывода, используя предварительно вычисленные состояния вывода.
- * @param nonTerminal Текущий нетерминал, для которого строится поддерево.
- * @param grammar Ссылка на вектор правил грамматики.
- * @param ruleSequence Последовательность применяемых правил.
- * @param currentRuleIndex Ссылка на индекс текущего правила в последовательности.
- * @param derivationStates Вектор, содержащий состояния всей цепочки на каждом шаге вывода.
- * @return Указатель на корень построенного поддерева.
- */
-TreeNode* buildTree(char nonTerminal, const std::vector<Rule>& grammar, const std::vector<int>& ruleSequence, size_t& currentRuleIndex, const std::vector<std::string>& derivationStates) {
-    auto* node = new TreeNode();
-    if (currentRuleIndex >= ruleSequence.size()) {
-        node->value = "[ОШИБКА: Последовательность правил слишком коротка]";
-        return node;
-    }
-    int ruleNum = ruleSequence[currentRuleIndex];
-    
-    // Проверяем корректность правила
-    if (ruleNum <= 0 || (size_t)ruleNum >= grammar.size() || grammar[ruleNum].lhs != nonTerminal) {
-         node->value = "[ОШИБКА: Некорректное применение правила #" + std::to_string(ruleNum) + "]";
-         return node;
+        throw std::runtime_error("Ошибка вывода: Не найден подходящий нетерминал '" + std::string(1, rule.non_terminal) + "' для применения правила.");
     }
     
-    // Присваиваем значения узлу
-    node->value = std::string(1, nonTerminal) + "<" + std::to_string(ruleNum) + ">";
-    // Состояние цепочки ПОСЛЕ применения правила с индексом currentRuleIndex
-    node->derivation_state_string = derivationStates[currentRuleIndex + 1];
-    
-    currentRuleIndex++;
-    const Rule& rule = grammar[ruleNum];
-    
-    for (char symbol : rule.rhs) {
-        if (isNonTerminal(symbol)) {
-            node->children.push_back(buildTree(symbol, grammar, ruleSequence, currentRuleIndex, derivationStates));
-        } else {
-            auto* leaf = new TreeNode();
-            leaf->value = std::string(1, symbol);
-            node->children.push_back(leaf);
-        }
-    }
-    return node;
-}
+    const std::string& get_chain() const { return current_chain; }
 
-/**
- * @brief Рекурсивно обходит дерево и генерирует его линейную скобочную форму.
- * @param node Текущий узел дерева.
- * @param ss Поток для записи результата.
- */
-void generateBracketForm(const TreeNode* node, std::stringstream& ss) {
-    if (!node) return;
+private:
+    std::string current_chain;
+};
 
-    if (node->children.empty()) {
-        ss << node->value;
-    } else {
-        ss << "[" << node->value;
-        for (const auto* child : node->children) {
-            ss << " ";
-            generateBracketForm(child, ss);
-        }
-        ss << "]";
-    }
-}
+// --- Основная функция ---
 
-/**
- * @brief Вспомогательная рекурсивная функция для отрисовки псевдографического дерева.
- * @param node Узел дерева для отрисовки.
- * @param prefix Строка-префикс для форматирования.
- * @param isLast Является ли этот узел последним в списке дочерних узлов.
- */
-void printAsciiTreeRecursive(const TreeNode* node, const std::string& prefix, bool isLast) {
-    if (!node) return;
-    std::cout << prefix << (isLast ? "└─ " : "├─ ") << node->value;
-    if (!node->derivation_state_string.empty()) {
-        std::cout << " -> \"" << node->derivation_state_string << "\"";
-    }
-    std::cout << std::endl;
-    
-    std::string childPrefix = prefix + (isLast ? "    " : "│   ");
-    for (size_t i = 0; i < node->children.size(); ++i) {
-        printAsciiTreeRecursive(node->children[i], childPrefix, i == node->children.size() - 1);
-    }
-}
-
-/**
- * @brief Запускает отрисовку дерева вывода в псевдографическом виде.
- * @param root Указатель на корневой узел дерева.
- */
-void printAsciiTree(const TreeNode* root) {
-    if (!root) return;
-    std::cout << root->value;
-    if (!root->derivation_state_string.empty()) {
-        std::cout << " -> \"" << root->derivation_state_string << "\"";
-    }
-    std::cout << std::endl;
-    for (size_t i = 0; i < root->children.size(); ++i) {
-        printAsciiTreeRecursive(root->children[i], "", i == root->children.size() - 1);
-    }
-}
-
-
-// --- Основная логика ---
-
-/**
- * @brief Выводит на экран правила заданной грамматики.
- * @param grammar Вектор правил.
- */
-void printGrammar(const std::vector<Rule>& grammar) {
+void print_rules(const std::vector<Rule>& rules) {
     std::cout << "--- Грамматика (Вариант 9) ---\n";
-    for (size_t i = 1; i < grammar.size(); ++i) {
-        std::cout << i << ". " << grammar[i].lhs << " -> " << grammar[i].rhs << "\n";
+    for(size_t i = 0; i < rules.size(); ++i) {
+        std::cout << i + 1 << ". " << rules[i].non_terminal << " -> " << rules[i].replacement << "\n";
     }
-    std::cout << "-------------------------------\n\n";
+    std::cout << "------------------------------\n\n";
 }
 
-/**
- * @brief Обрабатывает одну последовательность правил: строит вывод и оба представления дерева.
- * @param title Заголовок для блока вывода.
- * @param grammar Ссылка на грамматику.
- * @param ruleSequence Последовательность правил для обработки.
- */
-void processDerivation(const std::string& title, const std::vector<Rule>& grammar, const std::vector<int>& ruleSequence) {
-    std::cout << "\n=========================================================\n";
-    std::cout << title << "\n";
-    std::cout << "---------------------------------------------------------\n";
-
-    // --- Этап 1: Симуляция левого вывода и сбор состояний ---
-    std::vector<std::string> derivationStates;
-    std::string currentString = "S";
-    derivationStates.push_back(currentString);
-
-    std::cout << "-> Левый вывод:\n\n   " << currentString << "\n";
-    for (int ruleNum : ruleSequence) {
-        int index = findLeftmostNonTerminalIndex(currentString);
-        if (index == -1) {
-            std::cout << "\n[ОШИБКА ВЫВОДА] В цепочке нет нетерминалов, но правила еще есть.\n";
-            return;
-        }
-        char leftmostNonTerminal = currentString[index];
-        if (ruleNum <= 0 || (size_t)ruleNum >= grammar.size() || grammar[ruleNum].lhs != leftmostNonTerminal) {
-             std::cout << "\n[ОШИБКА ВЫВОДА] Правило #" << ruleNum << " неприменимо к '" << leftmostNonTerminal << "'.\n";
-             return;
-        }
-        
-        const Rule& ruleToApply = grammar[ruleNum];
-        currentString.replace(index, 1, ruleToApply.rhs);
-        derivationStates.push_back(currentString); // Сохраняем состояние ПОСЛЕ применения
-        std::cout << "   => " << currentString << "\n";
-    }
-    std::cout << "\n-> Итоговая терминальная цепочка: " << currentString << "\n";
-
-    // --- Этап 2: Построение дерева и генерация представлений ---
-    size_t ruleIndex = 0;
-    TreeNode* root = buildTree('S', grammar, ruleSequence, ruleIndex, derivationStates);
-
-    std::stringstream bracket_ss;
-    generateBracketForm(root, bracket_ss);
-    std::cout << "\n-> Линейная скобочная форма:\n\n" << bracket_ss.str() << "\n";
-
-    std::cout << "\n-> Дерево вывода (с состояниями цепочки):\n\n";
-    printAsciiTree(root);
-    
-    delete root; // Освобождаем память
-    std::cout << "\n=========================================================\n\n";
-}
-
-
-/**
- * @brief Главная функция программы.
- * @return 0 в случае успешного завершения.
- */
 int main() {
-    const std::vector<Rule> grammar = {
-        {},
+    // Используем вашу грамматику "Вариант 9"
+    const std::vector<Rule> rules = {
         {'S', "SbSa"}, {'S', "Sa"},   {'S', "A"},
         {'A', "aS"},   {'A', "aB"},   {'A', "b"},
         {'B', "b"},    {'B', "Aa"}
     };
+    
+    print_rules(rules);
 
-    printGrammar(grammar);
-    std::string userInput;
-    while (true) {
-        std::cout << "Введите последовательность правил (через запятую) или 'exit' для выхода:\n> ";
-        std::getline(std::cin, userInput);
+    std::cout << "Введите последовательность правил (например, 357):\n> ";
+    std::string rule_sequence_str;
+    std::cin >> rule_sequence_str;
 
-        if (userInput == "exit" || userInput == "quit") break;
-        if (userInput.empty()) continue;
+    try {
+        DerivationProcessor processor("S");
+        DerivationTree tree('S');
 
-        std::vector<int> ruleSequence;
-        if (parseRuleSequence(userInput, ruleSequence)) {
-            if (ruleSequence.empty()) {
-                 std::cout << "[ПРЕДУПРЕЖДЕНИЕ] Вы ввели пустую последовательность.\n\n";
-                 continue;
+        std::cout << "\n-> Процесс левого вывода:\n\n";
+        std::string display_chain = "S";
+        std::cout << "   " << display_chain;
+
+        for (char rule_char : rule_sequence_str) {
+            if (!isdigit(rule_char)) {
+                throw std::runtime_error("Ошибка ввода: '" + std::string(1, rule_char) + "' не является цифрой.");
             }
-            processDerivation("Результат для введенной последовательности", grammar, ruleSequence);
-        } else {
-            std::cout << "Пожалуйста, попробуйте еще раз.\n\n";
-        }
-    }
+            int rule_index = rule_char - '1'; // '1' -> 0, '2' -> 1, ...
+            if (rule_index < 0 || (size_t)rule_index >= rules.size()) {
+                throw std::runtime_error("Ошибка ввода: Правила с номером " + std::string(1, rule_char) + " не существует.");
+            }
+            const Rule& selected_rule = rules[rule_index];
 
-    std::cout << "\nПрограмма завершена.\n";
+            // Модифицируем отображаемую строку ПЕРЕД заменой
+            bool rule_added = false;
+            for(size_t i = 0; i < display_chain.length(); ++i) {
+                if(isupper(display_chain[i])) {
+                    display_chain.insert(i + 1, std::to_string(rule_index + 1));
+                    rule_added = true;
+                    break;
+                }
+            }
+            std::cout << " => " << display_chain;
+
+            // Применяем правило к дереву и реальной цепочке
+            tree.apply_rule(selected_rule, rule_index + 1);
+            processor.apply_rule(selected_rule);
+            display_chain = processor.get_chain();
+        }
+        std::cout << " => " << processor.get_chain() << "\n\n";
+
+        // Проверка результата
+        const std::string final_chain = processor.get_chain();
+        for (char c : final_chain) {
+            if (isupper(c)) {
+                std::cout << "[ПРЕДУПРЕЖДЕНИЕ] Итоговая цепочка не является терминальной. Найден нетерминал '" << c << "'.\n";
+                break;
+            }
+        }
+
+        std::cout << "-> Итоговая цепочка:\n   " << final_chain << "\n\n";
+        std::cout << "-> Линейная скобочная форма дерева вывода:\n   " << tree.get_bracket_form() << "\n\n";
+
+    } catch (const std::runtime_error& e) {
+        std::cerr << "\n[ПРОИЗОШЛА ОШИБКА]\n" << e.what() << "\n\n";
+        return 1;
+    }
 
     return 0;
 }
