@@ -118,7 +118,7 @@ int main() {
         exit(1);
     }
 
-    if (child_pid == 0) { /
+    if (child_pid == 0) { 
         // Сбрасываем унаследованный обработчик SIGINT на стандартное поведение
         signal(SIGINT, SIG_DFL);
 
