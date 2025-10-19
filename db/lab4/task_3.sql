@@ -10,18 +10,12 @@ FROM Boarding_passes
 WHERE flight_id = 12345;
 
 -- 3. Найдите модели самолётов, у которых все рейсы имеют статус 'Arrived'
-SELECT DISTINCT a.airplane_code, a.model
+SELECT 
+    a.airplane_code,
+    a.model
 FROM Airplanes a
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM Routes r
-    JOIN Flights f ON r.route_no = f.route_no
-    WHERE r.airplane_code = a.airplane_code 
-    AND f.status != 'Arrived'
-)
-AND EXISTS (
-    SELECT 1
-    FROM Routes r
-    JOIN Flights f ON r.route_no = f.route_no
-    WHERE r.airplane_code = a.airplane_code
-);
+JOIN Routes r ON a.airplane_code = r.airplane_code
+JOIN Flights f ON r.route_no = f.route_no
+GROUP BY a.airplane_code, a.model
+HAVING COUNT(f.flight_id) = SUM(CASE WHEN f.status = 'Arrived' THEN 1 ELSE 0 END)
+   AND COUNT(f.flight_id) > 0;
