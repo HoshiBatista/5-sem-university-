@@ -5,6 +5,8 @@
 #include <string>
 #include <memory>
 #include <array>
+#include <sstream>
+#include <iomanip>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -26,6 +28,13 @@ float magnifier_x = 0.0f;
 float magnifier_y = 0.0f;
 const float magnifier_radius = 80.0f;
 const float magnifier_zoom = 2.0f;
+
+// Переменные для подсчёта FPS
+Uint32 frame_start_time = 0;
+Uint32 frame_end_time = 0;
+float frame_time = 0.0f;
+float fps = 0.0f;
+const int FPS_SMOOTHING = 10; // Сглаживание FPS за 10 кадров
 
 struct COLOR {
     Uint8 r, g, b, a;
@@ -692,12 +701,18 @@ int main(int argc, char* argv[]) {
     int windowWidth = INITIAL_WIDTH;
     int windowHeight = INITIAL_HEIGHT;
 
-    auto updateWindowTitle = [window, &logicalWidth, &logicalHeight]() {
-        std::string title = "Лаб. работа №3 - Разрешение: " + 
-                           std::to_string(logicalWidth) + "x" + 
-                           std::to_string(logicalHeight) +
-                           " - Прозрачность: " + std::to_string(static_cast<int>(global_alpha * 100)) + "%";
-        SDL_SetWindowTitle(window, title.c_str());
+    // Переменные для подсчёта FPS
+    std::vector<float> frame_times;
+    float avg_frame_time = 0.0f;
+    float avg_fps = 0.0f;
+
+    auto updateWindowTitle = [window, &logicalWidth, &logicalHeight, &avg_frame_time, &avg_fps]() {
+        std::ostringstream title;
+        title << "Лаб. работа №3 - Разрешение: " << logicalWidth << "x" << logicalHeight
+              << " - Прозрачность: " << static_cast<int>(global_alpha * 100) << "%"
+              << " - Время кадра: " << std::fixed << std::setprecision(2) << avg_frame_time << " мс"
+              << " - FPS: " << std::fixed << std::setprecision(1) << avg_fps;
+        SDL_SetWindowTitle(window, title.str().c_str());
     };
 
     updateWindowTitle();
@@ -707,8 +722,8 @@ int main(int argc, char* argv[]) {
     Uint32 startTime = SDL_GetTicks();
 
     while (running) {
-        Uint32 frameStart = SDL_GetTicks();
-        float time = (frameStart - startTime) / 1000.0f;
+        frame_start_time = SDL_GetTicks();
+        float time = (frame_start_time - startTime) / 1000.0f;
 
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
@@ -853,9 +868,33 @@ int main(int argc, char* argv[]) {
         SDL_RenderCopy(renderer, texture, NULL, &dstRect);
         SDL_RenderPresent(renderer);
 
-        Uint32 frameTime = SDL_GetTicks() - frameStart;
-        if (frameTime < 33) {
-            SDL_Delay(33 - frameTime);
+        // Подсчёт времени рендеринга кадра и FPS
+        frame_end_time = SDL_GetTicks();
+        frame_time = frame_end_time - frame_start_time;
+        
+        // Сохраняем время кадра для усреднения
+        frame_times.push_back(frame_time);
+        if (frame_times.size() > FPS_SMOOTHING) {
+            frame_times.erase(frame_times.begin());
+        }
+        
+        // Вычисляем среднее время кадра и FPS
+        avg_frame_time = 0.0f;
+        for (float ft : frame_times) {
+            avg_frame_time += ft;
+        }
+        avg_frame_time /= frame_times.size();
+        
+        if (avg_frame_time > 0) {
+            avg_fps = 1000.0f / avg_frame_time;
+        }
+        
+        // Обновляем заголовок окна с информацией о производительности
+        updateWindowTitle();
+
+        // Задержка для стабилизации FPS (если нужно)
+        if (frame_time < 16) { // ~60 FPS
+            SDL_Delay(16 - frame_time);
         }
     }
 
