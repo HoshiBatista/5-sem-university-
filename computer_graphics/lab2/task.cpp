@@ -345,6 +345,58 @@ public:
         float innerArea = M_PI * innerRadius * innerRadius;
         return outerArea - innerArea;
     }
+
+        bool Contains(int x, int y) override {
+        // Используем баррицентрические координаты для проверки
+        float alpha = ((y2 - y3)*(x - x3) + (x3 - x2)*(y - y3)) / 
+                     ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3));
+        float beta = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / 
+                    ((y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3));
+        float gamma = 1.0f - alpha - beta;
+        
+        return alpha >= 0 && beta >= 0 && gamma >= 0;
+    }
+    
+    float GetArea() override {
+        return abs((x1*(y2 - y3) + x2*(y3 - y1) + x3*(y1 - y2)) / 2.0f);
+    }
+    
+private:
+    void FillTriangleBarycentric(Frame& frame, int x1, int y1, int x2, int y2, int x3, int y3, COLOR colors[3]) {
+        // Находим ограничивающий прямоугольник
+        int minX = std::min({x1, x2, x3});
+        int maxX = std::max({x1, x2, x3});
+        int minY = std::min({y1, y2, y3});
+        int maxY = std::max({y1, y2, y3});
+        
+        // Предварительные вычисления для баррицентрических координат
+        float denom = (y2 - y3)*(x1 - x3) + (x3 - x2)*(y1 - y3);
+        
+        for (int y = minY; y <= maxY; y++) {
+            for (int x = minX; x <= maxX; x++) {
+                // Вычисляем баррицентрические координаты
+                float alpha = ((y2 - y3)*(x - x3) + (x3 - x2)*(y - y3)) / denom;
+                float beta = ((y3 - y1)*(x - x3) + (x1 - x3)*(y - y3)) / denom;
+                float gamma = 1.0f - alpha - beta;
+                
+                // Если точка внутри треугольника
+                if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+                    // Интерполируем цвет
+                    COLOR interpolated = InterpolateColorBarycentric(colors[0], colors[1], colors[2], alpha, beta, gamma);
+                    frame.SetPixel(x, y, interpolated);
+                }
+            }
+        }
+    }
+    
+    COLOR InterpolateColorBarycentric(COLOR c1, COLOR c2, COLOR c3, float alpha, float beta, float gamma) {
+        return COLOR(
+            static_cast<Uint8>(c1.r * alpha + c2.r * beta + c3.r * gamma),
+            static_cast<Uint8>(c1.g * alpha + c2.g * beta + c3.g * gamma),
+            static_cast<Uint8>(c1.b * alpha + c2.b * beta + c3.b * gamma),
+            static_cast<Uint8>(c1.a * alpha + c2.a * beta + c3.a * gamma)
+        );
+    }
 };
 
 int main(int argc, char* argv[]) {
