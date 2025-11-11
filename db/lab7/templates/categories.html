@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Управление категориями{% endblock %}
+
+{% block content %}
+<h1 class="mb-4"><i class="fas fa-list"></i> Управление категориями</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-chart-bar"></i> Статистика по категориям</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Категория</th>
+                                <th>Товаров</th>
+                                <th>Ремонтов</th>
+                                <th>Общая стоимость</th>
+                                <th>Средняя стоимость</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in stats %}
+                            <tr>
+                                <td>{{ stat.category }}</td>
+                                <td>{{ stat.product_count }}</td>
+                                <td>{{ stat.repair_count }}</td>
+                                <td>₽{{ "%.2f"|format(stat.total_repair_cost) }}</td>
+                                <td>₽{{ "%.2f"|format(stat.avg_repair_cost) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-database"></i> SQL запросы для категорий</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/categories/sql">
+                    <div class="mb-3">
+                        <label class="form-label">SQL запрос</label>
+                        <textarea name="sql_query" class="form-control" rows="4" 
+                                  placeholder="Введите SQL запрос, связанный с категориями..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            Примеры:<br>
+                            SELECT * FROM products WHERE category = 'Смартфоны'<br>
+                            UPDATE products SET base_repair_cost = 2000 WHERE category = 'Ноутбуки'
+                        </small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Выполнить запрос</button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-tags"></i> Все категории</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for category in categories %}
+                    <li class="list-group-item">{{ category }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

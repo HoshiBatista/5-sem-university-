@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Обеспеченность городов{% endblock %}
+
+{% block content %}
+<h1 class="mb-4"><i class="fas fa-city"></i> Обеспеченность городов мастерскими</h1>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Город</th>
+                <th>Категория</th>
+                <th>Всего мастерских</th>
+                <th>Специализированные</th>
+                <th>Выполнено ремонтов</th>
+                <th>Покрытие</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in coverage %}
+            <tr>
+                <td>{{ item.city_name }}</td>
+                <td>{{ item.category }}</td>
+                <td>{{ item.total_shops }}</td>
+                <td>{{ item.specialized_shops }}</td>
+                <td>{{ item.repairs_done }}</td>
+                <td>
+                    {% if item.coverage_percentage >= 80 %}
+                        <span class="badge bg-success">{{ "%.1f"|format(item.coverage_percentage) }}% ✅</span>
+                    {% elif item.coverage_percentage >= 50 %}
+                        <span class="badge bg-warning">{{ "%.1f"|format(item.coverage_percentage) }}% ⚠️</span>
+                    {% else %}
+                        <span class="badge bg-danger">{{ "%.1f"|format(item.coverage_percentage) }}% ❌</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
