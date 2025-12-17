@@ -1,0 +1,3 @@
+/home/crissyro/5-sem-university-/computer_graphics/rgz/CMakeFiles/rgz.dir
+/home/crissyro/5-sem-university-/computer_graphics/rgz/CMakeFiles/edit_cache.dir
+/home/crissyro/5-sem-university-/computer_graphics/rgz/CMakeFiles/rebuild_cache.dir

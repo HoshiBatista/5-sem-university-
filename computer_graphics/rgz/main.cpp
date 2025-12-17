@@ -19,9 +19,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-// ==========================================
-// 1. КЛАСС КАМЕРЫ
-// ==========================================
 class Camera {
 public:
     enum Direction { FORWARD, BACKWARD, LEFT, RIGHT, UP, DOWN };
@@ -98,9 +95,6 @@ private:
     }
 };
 
-// ==========================================
-// 2. КЛАСС ШЕЙДЕРА
-// ==========================================
 class Shader {
 public:
     unsigned int ID;
@@ -213,9 +207,6 @@ private:
     }
 };
 
-// ==========================================
-// 3. СТРУКТУРЫ ДАННЫХ
-// ==========================================
 struct Vertex {
     glm::vec3 Position;
     glm::vec3 Normal;
@@ -230,9 +221,6 @@ struct Texture {
     std::string path;
 };
 
-// ==========================================
-// 4. КЛАСС МЕША
-// ==========================================
 class Mesh {
 public:
     std::vector<Vertex> vertices;
@@ -251,9 +239,8 @@ public:
     }
 
     void Draw(Shader &shader) {
-        if (VAO == 0) return; // Проверка инициализации
+        if (VAO == 0) return; 
         
-        // Используем текстуры если они есть
         if (!textures.empty() && textures[0].id != 0) {
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, textures[0].id);
@@ -267,7 +254,6 @@ public:
                 shader.setInt("material.specular", 0);
             }
         } else {
-            // Если текстур нет, используем цвет вершин
             shader.setInt("material.diffuse", 0);
             shader.setInt("material.specular", 0);
         }
@@ -321,9 +307,6 @@ private:
     }
 };
 
-// ==========================================
-// 5. УТИЛИТЫ ДЛЯ СОЗДАНИЯ МЕШЕЙ
-// ==========================================
 unsigned int loadTexture(const char *path) {
     unsigned int textureID = 0;
     glGenTextures(1, &textureID);
@@ -355,10 +338,24 @@ unsigned int loadTexture(const char *path) {
     return textureID;
 }
 
+unsigned int createDynamicTexture(int width, int height) {
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    return textureID;
+}
+
 unsigned int createSolidColorTexture(glm::vec3 color) {
     unsigned int textureID = 0;
     
-    // Проверяем, готов ли OpenGL
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
         std::cerr << "OpenGL error before texture creation: " << error << std::endl;
@@ -499,7 +496,6 @@ Mesh createCylinder(float radius = 0.5f, float height = 2.0f, int segments = 36,
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
 
-    // Side vertices
     for(int i = 0; i <= segments; ++i) {
         float angle = 2.0f * M_PI * i / segments;
         float x = radius * cosf(angle);
@@ -507,7 +503,6 @@ Mesh createCylinder(float radius = 0.5f, float height = 2.0f, int segments = 36,
         
         glm::vec3 normal = glm::normalize(glm::vec3(x, 0.0f, z));
         
-        // Bottom vertex
         vertices.push_back({
             glm::vec3(x, -height/2, z),
             normal,
@@ -516,7 +511,6 @@ Mesh createCylinder(float radius = 0.5f, float height = 2.0f, int segments = 36,
             1.0f
         });
         
-        // Top vertex
         vertices.push_back({
             glm::vec3(x, height/2, z),
             normal,
@@ -526,7 +520,6 @@ Mesh createCylinder(float radius = 0.5f, float height = 2.0f, int segments = 36,
         });
     }
 
-    // Side indices
     for(int i = 0; i < segments; ++i) {
         int idx = i * 2;
         indices.push_back(idx);
@@ -538,7 +531,6 @@ Mesh createCylinder(float radius = 0.5f, float height = 2.0f, int segments = 36,
         indices.push_back(idx + 2);
     }
 
-    // Top and bottom caps
     int centerBottom = vertices.size();
     vertices.push_back({glm::vec3(0.0f, -height/2, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f), glm::vec2(0.5f, 0.5f), color, 1.0f});
     
@@ -550,7 +542,6 @@ Mesh createCylinder(float radius = 0.5f, float height = 2.0f, int segments = 36,
         float x = radius * cosf(angle);
         float z = radius * sinf(angle);
         
-        // Bottom cap vertex
         vertices.push_back({
             glm::vec3(x, -height/2, z),
             glm::vec3(0.0f, -1.0f, 0.0f),
@@ -559,7 +550,6 @@ Mesh createCylinder(float radius = 0.5f, float height = 2.0f, int segments = 36,
             1.0f
         });
         
-        // Top cap vertex
         vertices.push_back({
             glm::vec3(x, height/2, z),
             glm::vec3(0.0f, 1.0f, 0.0f),
@@ -569,7 +559,6 @@ Mesh createCylinder(float radius = 0.5f, float height = 2.0f, int segments = 36,
         });
         
         if(i < segments) {
-            // Bottom cap indices
             int bottomIdx = centerBottom + 1 + i * 2;
             indices.push_back(centerBottom);
             indices.push_back(bottomIdx);
@@ -593,13 +582,15 @@ Mesh createCylinder(float radius = 0.5f, float height = 2.0f, int segments = 36,
     return Mesh(vertices, indices, textures);
 }
 
-Mesh createPlane(float size = 40.0f, glm::vec3 color = glm::vec3(0.2f, 0.6f, 0.3f)) {
+Mesh createPlane(float size = 40.0f, glm::vec3 color = glm::vec3(0.2f, 0.6f, 0.3f), unsigned int textureID = 0) {
     float half = size / 2.0f;
+    float uvScale = size / 10.0f; 
+
     std::vector<Vertex> vertices = {
         {glm::vec3(-half, 0.0f, -half), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(0.0f, 0.0f), color, 1.0f},
-        {glm::vec3(half, 0.0f, -half), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(size, 0.0f), color, 1.0f},
-        {glm::vec3(half, 0.0f, half), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(size, size), color, 1.0f},
-        {glm::vec3(-half, 0.0f, half), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(0.0f, size), color, 1.0f}
+        {glm::vec3(half, 0.0f, -half), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(uvScale, 0.0f), color, 1.0f},
+        {glm::vec3(half, 0.0f, half), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(uvScale, uvScale), color, 1.0f},
+        {glm::vec3(-half, 0.0f, half), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(0.0f, uvScale), color, 1.0f}
     };
 
     std::vector<unsigned int> indices = {
@@ -607,8 +598,14 @@ Mesh createPlane(float size = 40.0f, glm::vec3 color = glm::vec3(0.2f, 0.6f, 0.3
         0, 2, 3
     };
 
-    unsigned int tex = createSolidColorTexture(glm::vec3(0.2f, 0.8f, 0.3f));
-    unsigned int specTex = createSolidColorTexture(glm::vec3(0.1f));
+    unsigned int tex;
+    if (textureID != 0) {
+        tex = textureID;
+    } else {
+        tex = createSolidColorTexture(color);
+    }
+
+    unsigned int specTex = createSolidColorTexture(glm::vec3(0.1f)); 
     std::vector<Texture> textures = {
         {tex, "diffuse", ""},
         {specTex, "specular", ""}
@@ -645,8 +642,7 @@ Mesh createPyramid(float base = 1.0f, float height = 1.5f, glm::vec3 color = glm
         3, 0, 4
     };
     
-    // Calculate normals for side faces
-    for (int i = 2; i < 6; ++i) {  // 4 side faces starting from index 2
+    for (int i = 2; i < 6; ++i) {  
         int idx0 = indices[i*3];
         int idx1 = indices[i*3+1];
         int idx2 = indices[i*3+2];
@@ -723,7 +719,6 @@ Mesh createCone(float radius = 0.5f, float height = 2.0f, int segments = 36, glm
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
 
-    // Apex
     vertices.push_back({
         glm::vec3(0.0f, height, 0.0f),
         glm::vec3(0.0f, 1.0f, 0.0f),
@@ -732,7 +727,6 @@ Mesh createCone(float radius = 0.5f, float height = 2.0f, int segments = 36, glm
         1.0f
     });
 
-    // Base vertices
     for(int i = 0; i <= segments; ++i) {
         float angle = 2.0f * M_PI * i / segments;
         float x = radius * cosf(angle);
@@ -742,7 +736,6 @@ Mesh createCone(float radius = 0.5f, float height = 2.0f, int segments = 36, glm
         glm::vec3 sideNormal = glm::normalize(glm::vec3(x, radius/height, z));
         glm::vec3 baseNormal(0.0f, -1.0f, 0.0f);
         
-        // Side vertex
         vertices.push_back({
             pos,
             sideNormal,
@@ -752,14 +745,12 @@ Mesh createCone(float radius = 0.5f, float height = 2.0f, int segments = 36, glm
         });
     }
 
-    // Side indices
     for(int i = 0; i < segments; ++i) {
         indices.push_back(0);
         indices.push_back(i + 1);
         indices.push_back(i + 2);
     }
 
-    // Base center
     int centerIdx = vertices.size();
     vertices.push_back({
         glm::vec3(0.0f, 0.0f, 0.0f),
@@ -769,7 +760,6 @@ Mesh createCone(float radius = 0.5f, float height = 2.0f, int segments = 36, glm
         1.0f
     });
 
-    // Base triangles
     for(int i = 0; i < segments; ++i) {
         indices.push_back(centerIdx);
         indices.push_back(i + 2);
@@ -790,13 +780,11 @@ Mesh createPrism(int sides = 6, float radius = 0.8f, float height = 2.0f, glm::v
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
 
-    // Top and bottom vertices
     for(int i = 0; i <= sides; ++i) {
         float angle = 2.0f * M_PI * i / sides;
         float x = radius * cosf(angle);
         float z = radius * sinf(angle);
         
-        // Bottom vertex
         vertices.push_back({
             glm::vec3(x, -height/2, z),
             glm::vec3(0.0f, -1.0f, 0.0f),
@@ -805,7 +793,6 @@ Mesh createPrism(int sides = 6, float radius = 0.8f, float height = 2.0f, glm::v
             1.0f
         });
         
-        // Top vertex
         vertices.push_back({
             glm::vec3(x, height/2, z),
             glm::vec3(0.0f, 1.0f, 0.0f),
@@ -815,7 +802,6 @@ Mesh createPrism(int sides = 6, float radius = 0.8f, float height = 2.0f, glm::v
         });
     }
 
-    // Side faces
     for(int i = 0; i < sides; ++i) {
         int bottom1 = i * 2;
         int bottom2 = (i + 1) * 2;
@@ -831,7 +817,6 @@ Mesh createPrism(int sides = 6, float radius = 0.8f, float height = 2.0f, glm::v
         indices.push_back(bottom2);
     }
 
-    // Top and bottom caps
     int centerBottom = vertices.size();
     vertices.push_back({
         glm::vec3(0.0f, -height/2, 0.0f),
@@ -854,18 +839,15 @@ Mesh createPrism(int sides = 6, float radius = 0.8f, float height = 2.0f, glm::v
         int idx1 = i * 2;
         int idx2 = (i + 1) * 2;
         
-        // Bottom cap
         indices.push_back(centerBottom);
         indices.push_back(idx1);
         indices.push_back(idx2);
         
-        // Top cap
         indices.push_back(centerTop);
         indices.push_back(idx2 + 1);
         indices.push_back(idx1 + 1);
     }
 
-    // Recalculate normals for sides
     for(int i = 0; i < sides * 2; ++i) {
         int idx = i * 3;
         glm::vec3 v0 = vertices[indices[idx]].Position;
@@ -891,10 +873,6 @@ Mesh createPrism(int sides = 6, float radius = 0.8f, float height = 2.0f, glm::v
     return Mesh(vertices, indices, textures);
 }
 
-// ==========================================
-// 5.1 НОВЫЕ ФИГУРЫ
-// ==========================================
-
 Mesh createOctahedron(float size = 1.0f, glm::vec3 color = glm::vec3(1.0f)) {
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
@@ -911,69 +889,42 @@ Mesh createOctahedron(float size = 1.0f, glm::vec3 color = glm::vec3(1.0f)) {
         glm::vec3(0.0f, 0.0f, -s)    // Зад
     };
     
-    // Грань 1: верх-право-перед
-    glm::vec3 v0 = positions[0], v1 = positions[2], v2 = positions[4];
-    glm::vec3 normal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
-    vertices.push_back({v0, normal, glm::vec2(0.5f, 1.0f), color, 1.0f});
-    vertices.push_back({v1, normal, glm::vec2(0.0f, 0.0f), color, 1.0f});
-    vertices.push_back({v2, normal, glm::vec2(1.0f, 0.0f), color, 1.0f});
-    indices.push_back(0); indices.push_back(1); indices.push_back(2);
+    vertices.clear();
+    indices.clear();
     
-    // Грань 2: верх-перед-лево
-    v0 = positions[0]; v1 = positions[4]; v2 = positions[3];
-    normal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
-    vertices.push_back({v0, normal, glm::vec2(0.5f, 1.0f), color, 1.0f});
-    vertices.push_back({v1, normal, glm::vec2(0.0f, 0.0f), color, 1.0f});
-    vertices.push_back({v2, normal, glm::vec2(1.0f, 0.0f), color, 1.0f});
-    indices.push_back(3); indices.push_back(4); indices.push_back(5);
+    // Все 8 граней октаэдра (каждая грань - треугольник)
+    std::vector<std::tuple<int, int, int>> faces = {
+        // Верхние грани
+        {0, 4, 2},  // верх-перед-право
+        {0, 2, 5},  // верх-право-зад
+        {0, 5, 3},  // верх-зад-лево
+        {0, 3, 4},  // верх-лево-перед
+        // Нижние грани
+        {1, 2, 4},  // низ-право-перед
+        {1, 5, 2},  // низ-зад-право
+        {1, 3, 5},  // низ-лево-зад
+        {1, 4, 3}   // низ-перед-лево
+    };
     
-    // Грань 3: верх-лево-зад
-    v0 = positions[0]; v1 = positions[3]; v2 = positions[5];
-    normal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
-    vertices.push_back({v0, normal, glm::vec2(0.5f, 1.0f), color, 1.0f});
-    vertices.push_back({v1, normal, glm::vec2(0.0f, 0.0f), color, 1.0f});
-    vertices.push_back({v2, normal, glm::vec2(1.0f, 0.0f), color, 1.0f});
-    indices.push_back(6); indices.push_back(7); indices.push_back(8);
-    
-    // Грань 4: верх-зад-право
-    v0 = positions[0]; v1 = positions[5]; v2 = positions[2];
-    normal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
-    vertices.push_back({v0, normal, glm::vec2(0.5f, 1.0f), color, 1.0f});
-    vertices.push_back({v1, normal, glm::vec2(0.0f, 0.0f), color, 1.0f});
-    vertices.push_back({v2, normal, glm::vec2(1.0f, 0.0f), color, 1.0f});
-    indices.push_back(9); indices.push_back(10); indices.push_back(11);
-    
-    // Грань 5: низ-перед-право
-    v0 = positions[1]; v1 = positions[4]; v2 = positions[2];
-    normal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
-    vertices.push_back({v0, normal, glm::vec2(0.5f, 1.0f), color, 1.0f});
-    vertices.push_back({v1, normal, glm::vec2(0.0f, 0.0f), color, 1.0f});
-    vertices.push_back({v2, normal, glm::vec2(1.0f, 0.0f), color, 1.0f});
-    indices.push_back(12); indices.push_back(13); indices.push_back(14);
-    
-    // Грань 6: низ-право-зад
-    v0 = positions[1]; v1 = positions[2]; v2 = positions[5];
-    normal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
-    vertices.push_back({v0, normal, glm::vec2(0.5f, 1.0f), color, 1.0f});
-    vertices.push_back({v1, normal, glm::vec2(0.0f, 0.0f), color, 1.0f});
-    vertices.push_back({v2, normal, glm::vec2(1.0f, 0.0f), color, 1.0f});
-    indices.push_back(15); indices.push_back(16); indices.push_back(17);
-    
-    // Грань 7: низ-зад-лево
-    v0 = positions[1]; v1 = positions[5]; v2 = positions[3];
-    normal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
-    vertices.push_back({v0, normal, glm::vec2(0.5f, 1.0f), color, 1.0f});
-    vertices.push_back({v1, normal, glm::vec2(0.0f, 0.0f), color, 1.0f});
-    vertices.push_back({v2, normal, glm::vec2(1.0f, 0.0f), color, 1.0f});
-    indices.push_back(18); indices.push_back(19); indices.push_back(20);
-    
-    // Грань 8: низ-лево-перед
-    v0 = positions[1]; v1 = positions[3]; v2 = positions[4];
-    normal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
-    vertices.push_back({v0, normal, glm::vec2(0.5f, 1.0f), color, 1.0f});
-    vertices.push_back({v1, normal, glm::vec2(0.0f, 0.0f), color, 1.0f});
-    vertices.push_back({v2, normal, glm::vec2(1.0f, 0.0f), color, 1.0f});
-    indices.push_back(21); indices.push_back(22); indices.push_back(23);
+    for (size_t i = 0; i < faces.size(); ++i) {
+        int i0 = std::get<0>(faces[i]);
+        int i1 = std::get<1>(faces[i]);
+        int i2 = std::get<2>(faces[i]);
+        
+        glm::vec3 v0 = positions[i0];
+        glm::vec3 v1 = positions[i1];
+        glm::vec3 v2 = positions[i2];
+        
+        glm::vec3 normal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
+        
+        vertices.push_back({v0, normal, glm::vec2(0.0f, 0.0f), color, 1.0f});
+        vertices.push_back({v1, normal, glm::vec2(0.5f, 0.0f), color, 1.0f});
+        vertices.push_back({v2, normal, glm::vec2(0.0f, 0.5f), color, 1.0f});
+        
+        indices.push_back(i * 3);
+        indices.push_back(i * 3 + 1);
+        indices.push_back(i * 3 + 2);
+    }
 
     unsigned int tex = createSolidColorTexture(color);
     unsigned int specTex = createSolidColorTexture(glm::vec3(0.5f));
@@ -989,10 +940,8 @@ Mesh createIcosahedron(float radius = 1.0f, glm::vec3 color = glm::vec3(1.0f)) {
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
     
-    // Константы для создания икосаэдра
     const float t = (1.0f + sqrt(5.0f)) / 2.0f;
     
-    // 12 вершин икосаэдра
     std::vector<glm::vec3> positions = {
         glm::vec3(-1.0f, t, 0.0f), glm::vec3(1.0f, t, 0.0f),
         glm::vec3(-1.0f, -t, 0.0f), glm::vec3(1.0f, -t, 0.0f),
@@ -1002,12 +951,10 @@ Mesh createIcosahedron(float radius = 1.0f, glm::vec3 color = glm::vec3(1.0f)) {
         glm::vec3(-t, 0.0f, -1.0f), glm::vec3(-t, 0.0f, 1.0f)
     };
     
-    // Нормализуем вершины до заданного радиуса
     for (auto& pos : positions) {
         pos = glm::normalize(pos) * radius;
     }
     
-    // 20 граней икосаэдра
     std::vector<std::tuple<int, int, int>> faces = {
         {0, 11, 5}, {0, 5, 1}, {0, 1, 7}, {0, 7, 10}, {0, 10, 11},
         {1, 5, 9}, {5, 11, 4}, {11, 10, 2}, {10, 7, 6}, {7, 1, 8},
@@ -1056,7 +1003,6 @@ Mesh createHelix(float radius = 1.0f, float height = 3.0f, float turns = 3.0f, i
         float x = radius * cosf(angle);
         float z = radius * sinf(angle);
         
-        // Тангенциальный вектор для вычисления нормали
         glm::vec3 tangent(-radius * sinf(angle), height/(segments*turns*2.0f*M_PI), radius * cosf(angle));
         glm::vec3 normal = glm::normalize(glm::vec3(cosf(angle), 0.0f, sinf(angle)));
         
@@ -1068,7 +1014,6 @@ Mesh createHelix(float radius = 1.0f, float height = 3.0f, float turns = 3.0f, i
             1.0f
         });
         
-        // Вторая точка для создания ленты
         float innerRadius = radius * 0.3f;
         float innerX = innerRadius * cosf(angle);
         float innerZ = innerRadius * sinf(angle);
@@ -1103,65 +1048,49 @@ Mesh createHelix(float radius = 1.0f, float height = 3.0f, float turns = 3.0f, i
     return Mesh(vertices, indices, textures);
 }
 
-// ==========================================
-// 6. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ШЕЙДЕРЫ
-// ==========================================
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
-// Освещение
 bool directionalLightEnabled = true;
 bool pointLightEnabled = true;
 bool spotLightEnabled = true;
 
-// Позиция точечного источника
 glm::vec3 pointLightPos = glm::vec3(5.0f, 5.0f, 5.0f);
 
-// Камера
-Camera camera(glm::vec3(0.0f, 15.0f, 25.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -25.0f);
+Camera camera(glm::vec3(0.0f, 30.0f, 50.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, -40.0f);
 
-// Структура для объекта сцены
 struct SceneObject {
     Mesh mesh;
-    glm::vec3 position;
+    glm::vec3 position; 
     glm::vec3 scale;
-    float rotationSpeed;
+    float rotationSpeed; 
     glm::vec3 rotationAxis;
     bool useVertexColor;
     bool useGradient;
     glm::vec3 color;
     std::string name;
     
-    // Конструктор по умолчанию
+    float orbitRadius;
+    float orbitSpeed;
+    
     SceneObject() : 
-        mesh(), 
-        position(0.0f), 
-        scale(1.0f), 
-        rotationSpeed(0.0f), 
-        rotationAxis(0.0f, 1.0f, 0.0f),
-        useVertexColor(true),
-        useGradient(false),
-        color(1.0f),
-        name("Object")
+        mesh(), position(0.0f), scale(1.0f), 
+        rotationSpeed(0.0f), rotationAxis(0.0f, 1.0f, 0.0f),
+        useVertexColor(true), useGradient(false), color(1.0f), name("Object"),
+        orbitRadius(0.0f), orbitSpeed(0.0f)
     {}
     
-    // Конструктор с параметрами
     SceneObject(const Mesh& m, const glm::vec3& pos, const glm::vec3& scl, 
                 float rotSpeed, const glm::vec3& rotAxis, bool useVertCol,
-                bool useGrad, const glm::vec3& col, const std::string& n) :
-        mesh(m),
-        position(pos),
-        scale(scl),
-        rotationSpeed(rotSpeed),
-        rotationAxis(rotAxis),
-        useVertexColor(useVertCol),
-        useGradient(useGrad),
-        color(col),
-        name(n)
+                bool useGrad, const glm::vec3& col, const std::string& n,
+                float oRadius = 0.0f, float oSpeed = 0.0f) :
+        mesh(m), position(pos), scale(scl),
+        rotationSpeed(rotSpeed), rotationAxis(rotAxis),
+        useVertexColor(useVertCol), useGradient(useGrad), color(col), name(n),
+        orbitRadius(oRadius), orbitSpeed(oSpeed)
     {}
 };
 
-// Шейдеры
 const char* vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec3 aPos;
@@ -1350,9 +1279,203 @@ void main() {
 }
 )";
 
-// ==========================================
-// 7. ФУНКЦИЯ ОБРАБОТКИ ВВОДА
-// ==========================================
+namespace Software2D {
+
+struct COLOR {
+    Uint8 r, g, b, a;
+    COLOR() : r(0), g(0), b(0), a(255) {}
+    COLOR(Uint8 red, Uint8 green, Uint8 blue, Uint8 alpha = 255) : r(red), g(green), b(blue), a(alpha) {}
+};
+
+class Matrix {
+    float M[3][3];
+public:
+    Matrix() : M{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}} {}
+    Matrix(float A00, float A01, float A02, float A10, float A11, float A12, float A20, float A21, float A22) 
+        : M{{A00, A01, A02}, {A10, A11, A12}, {A20, A21, A22}} {}
+    
+    Matrix operator * (const Matrix& A) const {
+        Matrix R;
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 3; j++)
+                R.M[i][j] = M[i][0] * A.M[0][j] + M[i][1] * A.M[1][j] + M[i][2] * A.M[2][j];
+        return R;
+    }
+    static Matrix Rotation(float angle) {
+        float rad = angle * M_PI / 180.0f;
+        float c = cos(rad), s = sin(rad);
+        return Matrix(c, s, 0, -s, c, 0, 0, 0, 1);
+    }
+    static Matrix Translation(float tx, float ty) { return Matrix(1, 0, 0, 0, 1, 0, tx, ty, 1); }
+    static Matrix Scaling(float sx, float sy) { return Matrix(sx, 0, 0, 0, sy, 0, 0, 0, 1); }
+    static Matrix WorldToScreen(float X1, float Y1, float X2, float Y2, float x1, float y1, float x2, float y2) {
+        float px = (X2 - X1) / (x2 - x1);
+        float py = (Y2 - Y1) / (y2 - y1);
+        return Matrix(px, 0, 0, 0, -py, 0, X1 - x1 * px, Y2 + y1 * py, 1);
+    }
+    const float* operator[](int index) const { return M[index]; }
+};
+
+class Vector {
+public:
+    float x, y;
+    Vector() : x(0), y(0) {}
+    Vector(float _x, float _y) : x(_x), y(_y) {}
+    Vector operator * (const Matrix &A) const {
+        float _x = x * A[0][0] + y * A[1][0] + A[2][0];
+        float _y = x * A[0][1] + y * A[1][1] + A[2][1];
+        float h = x * A[0][2] + y * A[1][2] + A[2][2];
+        return (h != 0) ? Vector(_x / h, _y / h) : Vector(_x, _y);
+    }
+};
+
+class BaseShader {
+public:
+    virtual ~BaseShader() = default;
+    virtual COLOR getColor(float x, float y, float h0, float h1, float h2) = 0;
+};
+
+class PulseShader : public BaseShader {
+    float t, a; COLOR c;
+public:
+    PulseShader(COLOR col, float time, float alpha) : c(col), t(time), a(alpha) {}
+    COLOR getColor(float, float, float, float, float) override {
+        float p = sin(t * 3) * 0.3f + 0.7f;
+        return COLOR(c.r * p, c.g * p, c.b * p, c.a * a);
+    }
+};
+class WaveShader : public BaseShader {
+    float t, a; COLOR c;
+public:
+    WaveShader(COLOR col, float time, float alpha) : c(col), t(time), a(alpha) {}
+    COLOR getColor(float x, float, float, float, float) override {
+        float w = sin(x * 0.05f + t * 2) * 0.3f + 0.7f;
+        return COLOR(c.r * w, c.g * w, c.b * w, c.a * a);
+    }
+};
+class FloodShader : public BaseShader {
+    float t, a; COLOR c;
+public:
+    FloodShader(COLOR col, float time, float alpha) : c(col), t(time), a(alpha) {}
+    COLOR getColor(float, float, float, float h1, float) override {
+        float lvl = sin(t * 1.5f) * 0.3f + 0.5f;
+        return (h1 < lvl) ? COLOR(c.r*0.7f, c.g*0.7f, c.b*0.7f, c.a*a*0.8f) : COLOR(c.r, c.g, c.b, c.a*a);
+    }
+};
+class FlickerShader : public BaseShader {
+    float t, a; COLOR c;
+public:
+    FlickerShader(COLOR col, float time, float alpha) : c(col), t(time), a(alpha) {}
+    COLOR getColor(float x, float, float, float, float) override {
+        float f = sin(t * 8 + x * 0.1f) * 0.2f + 0.8f;
+        return COLOR(c.r * f, c.g * f, c.b * f, c.a * a);
+    }
+};
+class GradientShader : public BaseShader {
+    float t, a; COLOR c;
+public:
+    GradientShader(COLOR col, float time, float alpha) : c(col), t(time), a(alpha) {}
+    COLOR getColor(float, float, float h0, float h1, float h2) override {
+        float g = (h0 + h1 * 0.5f + h2 * 0.5f) / 1.5f;
+        return COLOR(c.r * g, c.g * g, c.b * g, c.a * a);
+    }
+};
+class HoleShader : public BaseShader {
+    COLOR c;
+public:
+    HoleShader(COLOR col) : c(col) {}
+    COLOR getColor(float, float, float, float, float) override { return c; }
+};
+
+class Frame {
+    int width, height;
+public:
+    std::vector<COLOR> pixels;
+    Frame(int w, int h) : width(w), height(h), pixels(w * h) {}
+    
+    const void* getData() const { return pixels.data(); }
+
+    void SetPixel(int x, int y, COLOR color) {
+        if (x >= 0 && x < width && y >= 0 && y < height) {
+            if (color.a == 255) pixels[y * width + x] = color;
+            else {
+                COLOR d = pixels[y * width + x];
+                float a = color.a / 255.0f, ia = 1.0f - a;
+                pixels[y * width + x] = {
+                    (Uint8)(color.r * a + d.r * ia), (Uint8)(color.g * a + d.g * ia), (Uint8)(color.b * a + d.b * ia), 255
+                };
+            }
+        }
+    }
+    void Clear(COLOR color) { std::fill(pixels.begin(), pixels.end(), color); }
+
+    template <class ShaderT>
+    void DrawTriangle(float x0, float y0, float x1, float y1, float x2, float y2, ShaderT&& shader) {
+
+        float minX = std::min(x0, std::min(x1, x2));
+        float maxX = std::max(x0, std::max(x1, x2));
+        float minY = std::min(y0, std::min(y1, y2));
+        float maxY = std::max(y0, std::max(y1, y2));
+        
+        int sx = std::max(0, (int)minX), ex = std::min(width - 1, (int)maxX);
+        int sy = std::max(0, (int)minY), ey = std::min(height - 1, (int)maxY);
+        float S = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
+
+        for (int y = sy; y <= ey; y++) {
+            for (int x = sx; x <= ex; x++) {
+                float h0 = ((y1 - y2) * (x + 0.5f - x2) + (x2 - x1) * (y + 0.5f - y2)) / S;
+                float h1 = ((y2 - y0) * (x + 0.5f - x2) + (x0 - x2) * (y + 0.5f - y2)) / S;
+                float h2 = 1.0f - h0 - h1;
+                if (h0 >= -1e-6f && h1 >= -1e-6f && h2 >= -1e-6f)
+                    SetPixel(x, y, shader.getColor(x + 0.5f, y + 0.5f, h0, h1, h2));
+            }
+        }
+    }
+};
+
+class LetterR {
+    std::vector<Vector> v;
+    std::vector<std::tuple<int, int, int>> t;
+public:
+    LetterR() {
+        v = { {0,0},{0,2},{0.5f,2},{0.5f,0}, {0.5f,1.5f},{0.5f,2},{0.8f,1.9f},{1.0f,1.7f},{1.0f,1.3f},{0.8f,1.1f},{0.5f,1.0f},
+              {0.5f,1.6f},{0.5f,1.9f},{0.7f,1.85f},{0.85f,1.75f},{0.85f,1.45f},{0.7f,1.35f},{0.5f,1.3f} };
+        t = { {0,1,2},{0,2,3}, {4,5,6},{4,6,7},{4,7,8},{4,8,9},{4,9,10}, {11,12,13},{11,13,14},{11,14,15},{11,15,16},{11,16,17} };
+    }
+    void Draw(Frame& f, const Matrix& m, float tm, float a, COLOR c) {
+        std::vector<Vector> tv; for(auto& p : v) tv.push_back(p * m);
+        for(size_t i=0; i<t.size(); ++i) {
+            auto [i0, i1, i2] = t[i];
+            Vector p0=tv[i0], p1=tv[i1], p2=tv[i2];
+            if(i<2) f.DrawTriangle(p0.x,p0.y,p1.x,p1.y,p2.x,p2.y, PulseShader(c, tm, a));
+            else if(i<7) f.DrawTriangle(p0.x,p0.y,p1.x,p1.y,p2.x,p2.y, WaveShader(c, tm, a));
+            else f.DrawTriangle(p0.x,p0.y,p1.x,p1.y,p2.x,p2.y, HoleShader(COLOR(0,0,0,255)));
+        }
+    }
+};
+
+class LetterA {
+    std::vector<Vector> v;
+    std::vector<std::tuple<int, int, int>> t;
+public:
+    LetterA() {
+        v = { {0,0},{0.3f,2},{0.5f,2},{0.2f,0}, {0.5f,2},{0.7f,2},{1.0f,0},{0.8f,0}, {0.3f,1.0f},{0.7f,1.0f},{0.7f,0.8f},{0.3f,0.8f} };
+        t = { {0,1,2},{0,2,3}, {4,5,6},{4,6,7}, {8,9,10},{8,10,11} };
+    }
+    void Draw(Frame& f, const Matrix& m, float tm, float a, COLOR c) {
+        std::vector<Vector> tv; for(auto& p : v) tv.push_back(p * m);
+        for(size_t i=0; i<t.size(); ++i) {
+            auto [i0, i1, i2] = t[i];
+            Vector p0=tv[i0], p1=tv[i1], p2=tv[i2];
+            if(i<2) f.DrawTriangle(p0.x,p0.y,p1.x,p1.y,p2.x,p2.y, FloodShader(c, tm, a));
+            else if(i<4) f.DrawTriangle(p0.x,p0.y,p1.x,p1.y,p2.x,p2.y, GradientShader(c, tm, a));
+            else f.DrawTriangle(p0.x,p0.y,p1.x,p1.y,p2.x,p2.y, FlickerShader(c, tm, a));
+        }
+    }
+};
+
+} // namespace Software2D
+
 void processInput(SDL_Window* window, float deltaTime, bool& running) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -1378,7 +1501,6 @@ void processInput(SDL_Window* window, float deltaTime, bool& running) {
                     std::cout << "Spot Light: " << (spotLightEnabled ? "ON" : "OFF") << std::endl;
                     break;
                 case SDLK_f:
-                    // Переключение полного экрана
                     static bool fullscreen = false;
                     fullscreen = !fullscreen;
                     SDL_SetWindowFullscreen(window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
@@ -1431,7 +1553,6 @@ void processInput(SDL_Window* window, float deltaTime, bool& running) {
     if (keyState[SDL_SCANCODE_SPACE]) camera.ProcessKeyboard(Camera::UP, deltaTime);
     if (keyState[SDL_SCANCODE_LSHIFT]) camera.ProcessKeyboard(Camera::DOWN, deltaTime);
     
-    // Движение точечного источника
     float lightSpeed = 8.0f * deltaTime;
     if (keyState[SDL_SCANCODE_UP]) pointLightPos.z -= lightSpeed;
     if (keyState[SDL_SCANCODE_DOWN]) pointLightPos.z += lightSpeed;
@@ -1441,20 +1562,15 @@ void processInput(SDL_Window* window, float deltaTime, bool& running) {
     if (keyState[SDL_SCANCODE_PAGEDOWN]) pointLightPos.y -= lightSpeed;
 }
 
-// ==========================================
-// 8. ОСНОВНАЯ ФУНКЦИЯ
-// ==========================================
 int main() {
     std::cout << "Starting program..." << std::endl;
     
-    // Инициализация SDL
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
         return -1;
     }
     std::cout << "SDL initialized successfully" << std::endl;
     
-    // Настройка OpenGL атрибутов
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -1462,7 +1578,6 @@ int main() {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     
-    // Создание окна
     SDL_Window* window = SDL_CreateWindow("3D Сцена с разными фигурами",
                                          SDL_WINDOWPOS_CENTERED,
                                          SDL_WINDOWPOS_CENTERED,
@@ -1475,7 +1590,6 @@ int main() {
     }
     std::cout << "Window created successfully" << std::endl;
     
-    // Создание OpenGL контекста
     SDL_GLContext context = SDL_GL_CreateContext(window);
     if (!context) {
         std::cerr << "OpenGL context creation failed: " << SDL_GetError() << std::endl;
@@ -1484,10 +1598,8 @@ int main() {
         return -1;
     }
     
-    // Установка VSync
     SDL_GL_SetSwapInterval(1);
     
-    // Инициализация GLEW
     glewExperimental = GL_TRUE;
     GLenum err = glewInit();
     if (err != GLEW_OK) {
@@ -1500,7 +1612,6 @@ int main() {
     std::cout << "GLEW initialized successfully" << std::endl;
     std::cout << "OpenGL version: " << glGetString(GL_VERSION) << std::endl;
     
-    // Проверка поддержки OpenGL 3.3
     if (!GLEW_VERSION_3_3) {
         std::cerr << "OpenGL 3.3 is not supported!" << std::endl;
         SDL_GL_DeleteContext(context);
@@ -1509,30 +1620,25 @@ int main() {
         return -1;
     }
     
-    // Проверка ошибок после инициализации
     GLenum glError = glGetError();
     if (glError != GL_NO_ERROR) {
         std::cerr << "OpenGL error after initialization: " << glError << std::endl;
     }
     
-    // Настройка OpenGL состояний
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
     
-    // Проверка ошибок после настройки состояний
     glError = glGetError();
     if (glError != GL_NO_ERROR) {
         std::cerr << "OpenGL error after state setup: " << glError << std::endl;
     }
     
-    // Компиляция шейдеров (теперь контекст полностью инициализирован)
     std::cout << "Compiling shaders..." << std::endl;
     Shader lightingShader(vertexShaderSource, fragmentShaderSource, false);
     Shader lightCubeShader(lightCubeShaderVS, lightCubeShaderFS, false);
-    
-    // Проверка компиляции шейдеров
+
     if (lightingShader.ID == 0 || lightCubeShader.ID == 0) {
         std::cerr << "Failed to compile shaders!" << std::endl;
         SDL_GL_DeleteContext(context);
@@ -1542,242 +1648,165 @@ int main() {
     }
     std::cout << "Shaders compiled successfully" << std::endl;
     
-    // Теперь, когда OpenGL контекст полностью инициализирован,
-    // можно безопасно создавать текстуры и мешы
     std::cout << "Creating scene objects..." << std::endl;
-    
-    // Создание объектов сцены
-    std::vector<SceneObject> objects;
-    
-    // 1. Плоскость (земля)
-    std::cout << "Creating plane..." << std::endl;
-    Mesh planeMesh = createPlane(60.0f, glm::vec3(0.2f, 0.6f, 0.3f));
-    glError = glGetError();
-    if (glError != GL_NO_ERROR) {
-        std::cerr << "OpenGL error during plane creation: " << glError << std::endl;
-    }
+
+   std::vector<SceneObject> objects;
+
+   unsigned int marbleTexture = loadTexture("marble.jpg");
+
+    std::cout << "Creating textured plane..." << std::endl;
+    Mesh planeMesh = createPlane(100.0f, glm::vec3(1.0f), marbleTexture);
+
     objects.push_back(SceneObject(
         planeMesh,
+        glm::vec3(0.0f, -5.0f, 0.0f),
+        glm::vec3(1.0f),
+        0.0f,
+        glm::vec3(0.0f, 1.0f, 0.0f),
+        false, 
+        false,
+        glm::vec3(1.0f),
+        "Mable Floor",
+        0.0f, 0.0f
+    ));
+
+    const int TEX_WIDTH = 512;
+    const int TEX_HEIGHT = 512;
+
+    Software2D::Frame dynamicFrame(TEX_WIDTH, TEX_HEIGHT);
+    Software2D::LetterR letterR;
+    Software2D::LetterA letterA;
+
+    unsigned int dynamicTexID = createDynamicTexture(TEX_WIDTH, TEX_HEIGHT);
+    
+    Mesh bigCubeMesh;
+    {
+        bigCubeMesh = createCube(glm::vec3(1.0f), 1.0f); 
+        bigCubeMesh.textures[0].id = dynamicTexID; 
+        bigCubeMesh.textures[1].id = createSolidColorTexture(glm::vec3(0.0f)); 
+    }
+
+    objects.push_back(SceneObject(
+        bigCubeMesh,
+        glm::vec3(0.0f, 15.0f, 0.0f), 
+        glm::vec3(8.0f),              
+        0.5f,                         
+        glm::vec3(0.5f, 1.0f, 0.5f),   
+        false,                         
+        false,
+        glm::vec3(1.0f),               
+        "The Monolith",
+        0.0f, 0.0f
+    ));
+    
+    Mesh sunMesh = createSphere(1.0f, 32, 16, glm::vec3(1.0f, 0.9f, 0.0f)); 
+    objects.push_back(SceneObject(
+        sunMesh,
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(3.0f),       
+        0.5f,                  
+        glm::vec3(0.0f, 1.0f, 0.0f),
+        true, false, glm::vec3(1.0f, 0.9f, 0.0f),
+        "Солнце",
+        0.0f, 0.0f            
+    ));
+    
+    Mesh mercuryMesh = createCube(glm::vec3(0.6f, 0.6f, 0.6f), 1.0f);
+    objects.push_back(SceneObject(
+        mercuryMesh,
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.5f),
+        1.0f,
+        glm::vec3(1.0f, 1.0f, 0.0f), 
+        true, false, glm::vec3(0.6f),
+        "Меркурий",
+        5.0f, 1.5f            
+    ));
+
+    Mesh venusMesh = createIcosahedron(1.0f, glm::vec3(0.9f, 0.6f, 0.2f));
+    objects.push_back(SceneObject(
+        venusMesh,
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.7f),
+        -0.8f,               
+        glm::vec3(0.0f, 1.0f, 0.0f),
+        true, false, glm::vec3(0.9f, 0.6f, 0.2f),
+        "Венера",
+        8.0f, 1.2f
+    ));
+
+    Mesh earthMesh = createSphere(1.0f, 32, 16, glm::vec3(0.2f, 0.4f, 1.0f));
+    objects.push_back(SceneObject(
+        earthMesh,
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.8f),
+        2.0f,
+        glm::vec3(0.2f, 1.0f, 0.0f),
+        true, false, glm::vec3(0.2f, 0.4f, 1.0f),
+        "Земля",
+        11.0f, 1.0f            
+    ));
+
+    Mesh marsMesh = createOctahedron(1.0f, glm::vec3(1.0f, 0.2f, 0.1f));
+    objects.push_back(SceneObject(
+        marsMesh,
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(0.6f),
+        1.8f,
+        glm::vec3(0.5f, 1.0f, 0.0f),
+        true, false, glm::vec3(1.0f, 0.2f, 0.1f),
+        "Марс",
+        15.0f, 0.8f
+    ));
+
+    Mesh jupiterMesh = createTorus(1.0f, 0.3f, 32, 16, glm::vec3(0.8f, 0.5f, 0.3f));
+    objects.push_back(SceneObject(
+        jupiterMesh,
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(1.8f),
+        4.0f,                  
+        glm::vec3(0.0f, 1.0f, 0.0f),
+        true, false, glm::vec3(0.8f, 0.5f, 0.3f),
+        "Юпитер",
+        22.0f, 0.5f            
+    ));
+
+    Mesh saturnMesh = createHelix(1.0f, 0.5f, 3.0f, 60, glm::vec3(0.9f, 0.8f, 0.6f));
+    objects.push_back(SceneObject(
+        saturnMesh,
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(1.5f),
+        1.0f,
+        glm::vec3(0.3f, 1.0f, 0.0f), 
+        true, false, glm::vec3(0.9f, 0.8f, 0.6f),
+        "Сатурн",
+        28.0f, 0.4f
+    ));
+
+    Mesh uranusMesh = createCylinder(0.5f, 2.0f, 24, glm::vec3(0.4f, 0.9f, 0.9f));
+    objects.push_back(SceneObject(
+        uranusMesh,
         glm::vec3(0.0f, 0.0f, 0.0f),
         glm::vec3(1.0f),
-        0.0f,
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        false,
-        false,
+        1.0f,
+        glm::vec3(1.0f, 0.0f, 0.0f), 
+        true, false, glm::vec3(0.4f, 0.9f, 0.9f),
+        "Уран",
+        34.0f, 0.3f
+    ));
+
+    Mesh neptuneMesh = createCone(0.6f, 1.8f, 24, glm::vec3(0.1f, 0.1f, 0.8f));
+    objects.push_back(SceneObject(
+        neptuneMesh,
+        glm::vec3(0.0f, 0.0f, 0.0f),
         glm::vec3(1.0f),
-        "Плоскость"
-    ));
-    
-    // 2. Куб
-    std::cout << "Creating cube..." << std::endl;
-    Mesh cubeMesh = createCube(glm::vec3(0.9f, 0.9f, 0.0f), 4.0f);
-    glError = glGetError();
-    if (glError != GL_NO_ERROR) {
-        std::cerr << "OpenGL error during cube creation: " << glError << std::endl;
-    }
-    objects.push_back(SceneObject(
-        cubeMesh,
-        glm::vec3(0.0f, 2.0f, 0.0f),
-        glm::vec3(1.0f),
-        0.0f,
+        1.5f,
         glm::vec3(0.0f, 1.0f, 0.0f),
-        true,
-        false,
-        glm::vec3(0.9f, 0.9f, 0.0f),
-        "Куб"
+        true, false, glm::vec3(0.1f, 0.1f, 0.8f),
+        "Нептун",
+        39.0f, 0.2f
     ));
     
-    // 3. Октаэдр
-    std::cout << "Creating octahedron..." << std::endl;
-    Mesh octahedronMesh = createOctahedron(0.8f, glm::vec3(1.0f, 0.2f, 0.2f));
-    glError = glGetError();
-    if (glError != GL_NO_ERROR) {
-        std::cerr << "OpenGL error during octahedron creation: " << glError << std::endl;
-    }
-    objects.push_back(SceneObject(
-        octahedronMesh,
-        glm::vec3(6.0f, 2.0f, 0.0f),
-        glm::vec3(0.8f),
-        0.0f,
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        true,
-        false,
-        glm::vec3(1.0f, 0.2f, 0.2f),
-        "Октаэдр"
-    ));
-    
-    // 4. Сфера
-    std::cout << "Creating sphere..." << std::endl;
-    Mesh sphereMesh = createSphere(1.0f, 32, 16, glm::vec3(0.2f, 0.4f, 1.0f));
-    glError = glGetError();
-    if (glError != GL_NO_ERROR) {
-        std::cerr << "OpenGL error during sphere creation: " << glError << std::endl;
-    }
-    objects.push_back(SceneObject(
-        sphereMesh,
-        glm::vec3(-6.0f, 2.0f, 0.0f),
-        glm::vec3(0.7f),
-        0.0f,
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        true,
-        false,
-        glm::vec3(0.2f, 0.4f, 1.0f),
-        "Сфера"
-    ));
-    
-    // 5. Икосаэдр
-    std::cout << "Creating icosahedron..." << std::endl;
-    Mesh icosahedronMesh = createIcosahedron(0.7f, glm::vec3(0.2f, 0.8f, 0.3f));
-    glError = glGetError();
-    if (glError != GL_NO_ERROR) {
-        std::cerr << "OpenGL error during icosahedron creation: " << glError << std::endl;
-    }
-    objects.push_back(SceneObject(
-        icosahedronMesh,
-        glm::vec3(0.0f, 2.0f, 6.0f),
-        glm::vec3(0.6f),
-        0.0f,
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        true,
-        false,
-        glm::vec3(0.2f, 0.8f, 0.3f),
-        "Икосаэдр"
-    ));
-    
-    // 6. Тор
-    std::cout << "Creating torus..." << std::endl;
-    Mesh torusMesh = createTorus(0.8f, 0.3f, 32, 16, glm::vec3(0.8f, 0.2f, 0.8f));
-    glError = glGetError();
-    if (glError != GL_NO_ERROR) {
-        std::cerr << "OpenGL error during torus creation: " << glError << std::endl;
-    }
-    objects.push_back(SceneObject(
-        torusMesh,
-        glm::vec3(0.0f, 2.0f, -6.0f),
-        glm::vec3(0.5f),
-        0.0f,
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        true,
-        false,
-        glm::vec3(0.8f, 0.2f, 0.8f),
-        "Тор"
-    ));
-    
-    // 7. Конус
-    std::cout << "Creating cone..." << std::endl;
-    Mesh coneMesh = createCone(0.6f, 1.8f, 24, glm::vec3(1.0f, 0.5f, 0.1f));
-    glError = glGetError();
-    if (glError != GL_NO_ERROR) {
-        std::cerr << "OpenGL error during cone creation: " << glError << std::endl;
-    }
-    objects.push_back(SceneObject(
-        coneMesh,
-        glm::vec3(6.0f, 2.0f, 6.0f),
-        glm::vec3(0.6f),
-        0.0f,
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        true,
-        false,
-        glm::vec3(1.0f, 0.5f, 0.1f),
-        "Конус"
-    ));
-    
-    // 8. Призма (шестиугольная)
-    std::cout << "Creating prism..." << std::endl;
-    Mesh prismMesh = createPrism(6, 0.8f, 1.6f, glm::vec3(0.3f, 0.7f, 1.0f));
-    glError = glGetError();
-    if (glError != GL_NO_ERROR) {
-        std::cerr << "OpenGL error during prism creation: " << glError << std::endl;
-    }
-    objects.push_back(SceneObject(
-        prismMesh,
-        glm::vec3(-6.0f, 2.0f, 6.0f),
-        glm::vec3(0.5f),
-        0.0f,
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        true,
-        true,
-        glm::vec3(0.3f, 0.7f, 1.0f),
-        "Призма"
-    ));
-    
-    // 9. Спираль
-    std::cout << "Creating helix..." << std::endl;
-    Mesh helixMesh = createHelix(0.5f, 2.0f, 5.0f, 60, glm::vec3(0.7f, 0.7f, 0.9f));
-    glError = glGetError();
-    if (glError != GL_NO_ERROR) {
-        std::cerr << "OpenGL error during helix creation: " << glError << std::endl;
-    }
-    objects.push_back(SceneObject(
-        helixMesh,
-        glm::vec3(6.0f, 2.0f, -6.0f),
-        glm::vec3(0.4f),
-        0.0f,
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        true,
-        false,
-        glm::vec3(0.7f, 0.7f, 0.9f),
-        "Спираль"
-    ));
-    
-    // 10. Пирамида
-    std::cout << "Creating pyramid..." << std::endl;
-    Mesh pyramidMesh = createPyramid(1.5f, 2.0f, glm::vec3(0.9f, 0.8f, 0.1f));
-    glError = glGetError();
-    if (glError != GL_NO_ERROR) {
-        std::cerr << "OpenGL error during pyramid creation: " << glError << std::endl;
-    }
-    objects.push_back(SceneObject(
-        pyramidMesh,
-        glm::vec3(-6.0f, 2.0f, -6.0f),
-        glm::vec3(0.5f),
-        0.0f,
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        true,
-        false,
-        glm::vec3(0.9f, 0.8f, 0.1f),
-        "Пирамида"
-    ));
-    
-    // 11. Цилиндр
-    std::cout << "Creating cylinder..." << std::endl;
-    Mesh cylinderMesh = createCylinder(0.5f, 2.0f, 24, glm::vec3(0.8f, 0.2f, 0.2f));
-    glError = glGetError();
-    if (glError != GL_NO_ERROR) {
-        std::cerr << "OpenGL error during cylinder creation: " << glError << std::endl;
-    }
-    objects.push_back(SceneObject(
-        cylinderMesh,
-        glm::vec3(12.0f, 2.0f, 0.0f),
-        glm::vec3(0.6f),
-        0.0f,
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        true,
-        false,
-        glm::vec3(0.8f, 0.2f, 0.2f),
-        "Цилиндр"
-    ));
-    
-    // 12. Маленький куб
-    std::cout << "Creating small cube..." << std::endl;
-    Mesh smallCubeMesh = createCube(glm::vec3(0.5f, 0.5f, 0.5f), 0.6f);
-    glError = glGetError();
-    if (glError != GL_NO_ERROR) {
-        std::cerr << "OpenGL error during small cube creation: " << glError << std::endl;
-    }
-    objects.push_back(SceneObject(
-        smallCubeMesh,
-        glm::vec3(-12.0f, 2.0f, 0.0f),
-        glm::vec3(0.5f),
-        0.0f,
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        true,
-        false,
-        glm::vec3(0.5f, 0.5f, 0.5f),
-        "Маленький куб"
-    ));
-    
-    // Создание меша для точечного источника (сфера)
     std::cout << "Creating light sphere..." << std::endl;
     Mesh pointLightSphere = createSphere(0.3f, 16, 8, glm::vec3(1.0f, 1.0f, 0.8f));
     glError = glGetError();
@@ -1799,32 +1828,26 @@ int main() {
     std::cout << "All objects created successfully!" << std::endl;
     std::cout << "Entering main loop..." << std::endl;
     
-    // Главный цикл
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
     float totalTime = 0.0f;
     bool running = true;
     
     while (running) {
-        // Обработка времени
         float currentFrame = SDL_GetTicks() / 1000.0f;
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
         totalTime += deltaTime;
         
-        // Обработка ввода
         processInput(window, deltaTime, running);
         
-        // Проверка изменения размера окна
         int width, height;
         SDL_GetWindowSize(window, &width, &height);
         glViewport(0, 0, width, height);
         
-        // Очистка буферов
         glClearColor(0.02f, 0.02f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        // Матрицы вида и проекции
         glm::mat4 projection = glm::perspective(
             glm::radians(camera.Zoom),
             (float)width / (float)height,
@@ -1832,23 +1855,19 @@ int main() {
         );
         glm::mat4 view = camera.GetViewMatrix();
         
-        // Рендеринг объектов с освещением
         lightingShader.use();
         lightingShader.setMat4("projection", projection);
         lightingShader.setMat4("view", view);
         lightingShader.setVec3("viewPos", camera.Position);
         
-        // Материал
         lightingShader.setFloat("material.shininess", 64.0f);
         
-        // Направленный свет (солнечный свет)
         lightingShader.setVec3("dirLight.direction", glm::vec3(-0.5f, -1.0f, -0.3f));
         lightingShader.setVec3("dirLight.ambient", glm::vec3(0.1f, 0.1f, 0.1f));
         lightingShader.setVec3("dirLight.diffuse", glm::vec3(0.8f, 0.8f, 0.6f));
         lightingShader.setVec3("dirLight.specular", glm::vec3(1.0f, 1.0f, 0.9f));
         lightingShader.setBool("dirLight.enabled", directionalLightEnabled);
         
-        // Точечный свет (дополнительный источник)
         lightingShader.setVec3("pointLight.position", pointLightPos);
         lightingShader.setFloat("pointLight.constant", 1.0f);
         lightingShader.setFloat("pointLight.linear", 0.09f);
@@ -1858,31 +1877,66 @@ int main() {
         lightingShader.setVec3("pointLight.specular", glm::vec3(1.0f, 1.0f, 0.9f));
         lightingShader.setBool("pointLight.enabled", pointLightEnabled);
         
-        // Прожектор (следит за камерой)
         lightingShader.setVec3("spotLight.position", camera.Position);
         lightingShader.setVec3("spotLight.direction", camera.Front);
         lightingShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
-        lightingShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(17.5f)));
-        lightingShader.setFloat("spotLight.constant", 1.0f);
-        lightingShader.setFloat("spotLight.linear", 0.09f);
-        lightingShader.setFloat("spotLight.quadratic", 0.032f);
-        lightingShader.setVec3("spotLight.ambient", glm::vec3(0.0f, 0.0f, 0.0f));
-        lightingShader.setVec3("spotLight.diffuse", glm::vec3(1.0f, 1.0f, 1.0f));
-        lightingShader.setVec3("spotLight.specular", glm::vec3(1.0f, 1.0f, 1.0f));
-        lightingShader.setBool("spotLight.enabled", spotLightEnabled);
+        lightingShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(20.0f))); 
         
-        // Рендеринг всех объектов
+        lightingShader.setFloat("spotLight.constant", 1.0f);
+        lightingShader.setFloat("spotLight.linear", 0.02f);   
+        lightingShader.setFloat("spotLight.quadratic", 0.005f); 
+        
+        lightingShader.setVec3("spotLight.ambient", glm::vec3(0.1f, 0.1f, 0.1f));
+        lightingShader.setVec3("spotLight.diffuse", glm::vec3(3.0f, 3.0f, 3.0f)); 
+        lightingShader.setVec3("spotLight.specular", glm::vec3(3.0f, 3.0f, 3.0f)); 
+        lightingShader.setBool("spotLight.enabled", spotLightEnabled);
+
+        dynamicFrame.Clear(Software2D::COLOR(40, 0, 60, 255));
+        
+        auto WS = Software2D::Matrix::WorldToScreen(
+            50, 50, TEX_WIDTH - 50, TEX_HEIGHT - 50, 
+            -3.0f, -3.0f, 3.0f, 3.0f 
+        );
+
+        float angle2D = totalTime * 90.0f;
+        auto transR = Software2D::Matrix::Translation(-1.2f, 0.0f) * 
+                      Software2D::Matrix::Rotation(angle2D) * 
+                      Software2D::Matrix::Scaling(1.5f, 1.5f) * 
+                      WS;
+        letterR.Draw(dynamicFrame, transR, totalTime, 1.0f, Software2D::COLOR(100, 200, 255, 255));
+
+        auto transA = Software2D::Matrix::Translation(1.5f * cos(totalTime * 2.0f), 1.5f * sin(totalTime * 2.0f)) * 
+                      Software2D::Matrix::Rotation(-angle2D) * 
+                      Software2D::Matrix::Scaling(1.5f, 1.5f) * 
+                      WS;
+        letterA.Draw(dynamicFrame, transA, totalTime, 1.0f, Software2D::COLOR(255, 100, 100, 255));
+
+        glBindTexture(GL_TEXTURE_2D, dynamicTexID);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEX_WIDTH, TEX_HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, dynamicFrame.getData());
+        
         for (size_t i = 0; i < objects.size(); ++i) {
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, objects[i].position);
+            
+            float orbitX = cos(totalTime * objects[i].orbitSpeed) * objects[i].orbitRadius;
+            float orbitZ = sin(totalTime * objects[i].orbitSpeed) * objects[i].orbitRadius;
+            
+            glm::vec3 currentPos = objects[i].position + glm::vec3(orbitX, 0.0f, orbitZ);
+            
+            model = glm::translate(model, currentPos);
+ 
+            if (objects[i].rotationSpeed != 0.0f) {
+                model = glm::rotate(model, totalTime * objects[i].rotationSpeed, objects[i].rotationAxis);
+            }
+            
             model = glm::scale(model, objects[i].scale);
+            
             lightingShader.setMat4("model", model);
             lightingShader.setBool("useVertexColor", objects[i].useVertexColor);
             lightingShader.setBool("useGradient", objects[i].useGradient);
+            
             objects[i].mesh.Draw(lightingShader);
         }
         
-        // Рендеринг точечного источника (сфера)
         if (pointLightEnabled) {
             lightCubeShader.use();
             lightCubeShader.setMat4("projection", projection);
@@ -1895,20 +1949,15 @@ int main() {
             pointLightSphere.Draw(lightCubeShader);
         }
         
-        // Проверка ошибок OpenGL в конце кадра
         glError = glGetError();
         if (glError != GL_NO_ERROR && glError != GL_INVALID_OPERATION) {
             std::cerr << "OpenGL error during rendering: " << glError << std::endl;
         }
         
-        // Обмен буферов
         SDL_GL_SwapWindow(window);
     }
     
     std::cout << "Exiting..." << std::endl;
-    
-    // Очистка ресурсов
-    // (VAO, VBO, текстуры будут автоматически удалены при завершении программы)
     
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
