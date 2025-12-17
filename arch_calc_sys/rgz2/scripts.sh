@@ -4,4 +4,4 @@ ls
 whoami
 pwd
 
-gcc -fno-stack-protector -z execstack -no-pie exploit.c -o exploit
+gcc exploit.c -o exploit
